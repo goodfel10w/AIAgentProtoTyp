@@ -127,27 +127,29 @@ class WebSearchTools(
     //region Scrape tool
     @Tool
     @LLMDescription("Scrape a web page for content")
+    @Suppress("unused")
     suspend fun scrape(
-        @LLMDescription("The URL to scrape")
-        url: String,
+        @LLMDescription("The URL to scrape") url: String,
     ): WebPageScrapingResult {
-        val request =
-            BrightDataRequest(
-                zone = "web_unlocker1",
-                url = url,
-                format = "json",
-                dataFormat = "markdown",
-            )
+        val request = BrightDataRequest(
+            zone = "web_unlocker1",
+            url = url,
+            format = "json",
+            dataFormat = "markdown",
+        )
+        val response = httpClient.post { setBody(request) }
+        val result = response.body<WebPageScrapingResult>()
 
-        val response =
-            httpClient
-                .post {
-                    setBody(request)
-                }
+        // Optional: limit content length to avoid API overflow
+        val maxChars = 50_000 // ~12k tokens
+        val safeContent = if (result.body.length > maxChars) {
+            result.copy(body = result.body.take(maxChars) + "\n\n[Content truncated]")
+        } else {
+            result
+        }
 
-        return response.body<WebPageScrapingResult>()
+        return safeContent
     }
-    //endregion
 }
 //endregion
 
@@ -171,8 +173,8 @@ suspend fun main() {
             prompt("web_search_prompt") {
                 system("You are a helpful assistant that helps users to find information on the internet.")
             },
-        model = AnthropicModels.Haiku_3_5,
-        maxAgentIterations = 5,
+        model = AnthropicModels.Sonnet_4,
+        maxAgentIterations = 30,
     )
 
         //region Tool registry
@@ -198,7 +200,7 @@ suspend fun main() {
             }
         }
 
-    val result = agent.run("What is the meaning of life?")
+    val result = agent.run("Who is the president of the United States as of today?, tell me as well from which website you scraped the information")
     println(result)
 }
 
