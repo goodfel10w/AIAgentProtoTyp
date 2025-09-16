@@ -60,6 +60,37 @@ If either key is missing at runtime, the app will error with a clear message.
 
 ## How it works (step by step)
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User
+    participant AIAgent as Koog AIAgent
+    participant ToolRegistry
+    participant Tools as WebSearchTools
+    participant BrightData as Bright Data API
+    participant LLM as Anthropic LLM
+
+    User->>AIAgent: Ask a question (e.g., "Who is the president...?")
+    AIAgent->>ToolRegistry: Discover available tools
+    Note right of ToolRegistry: tools(webSearchTools)
+
+    AIAgent->>Tools: search(query)
+    Tools->>BrightData: POST /request (zone=serp_api1, format=raw)
+    BrightData-->>Tools: WebSearchResult (organic links)
+    Tools-->>AIAgent: Search results
+
+    alt Agent decides to scrape a promising link
+        AIAgent->>Tools: scrape(url)
+        Tools->>BrightData: POST /request (zone=web_unlocker1, format=json, dataFormat=markdown)
+        BrightData-->>Tools: WebPageScrapingResult (markdown)
+        Tools-->>AIAgent: Page content (possibly truncated)
+    end
+
+    AIAgent->>LLM: Compose final answer using search/scrape context
+    LLM-->>AIAgent: Final message
+    AIAgent-->>User: Answer with source(s)
+```
+
 Everything happens in Main.kt:
 
 1) JSON setup
